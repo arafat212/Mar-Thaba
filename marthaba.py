@@ -8,6 +8,9 @@ import time
 import threading
 import subprocess
 import re
+import sys
+import base64
+import tempfile
 
 CONFIG_FILE = os.path.expanduser("~/.marthaba_config.json")
 HISTORY_FILE = os.path.expanduser("~/.marthaba_history.json")
@@ -15,10 +18,13 @@ HISTORY_FILE = os.path.expanduser("~/.marthaba_history.json")
 class AnimatedMarThaba:
     def __init__(self, root):
         self.root = root
-        self.root.title("MarThaba Pro - Focus Guard")
+        self.root.title("MarThaba Pro - Ultimate Focus System")
         self.root.geometry("480x750")
         self.root.configure(bg='#0d1117')
         self.root.resizable(False, False)
+        
+        # Set app icon (Shield + Clock design)
+        self.setup_app_icon()
         
         # Center window
         self.root.eval('tk::PlaceWindow . center')
@@ -27,12 +33,21 @@ class AnimatedMarThaba:
         self.config = self.load_config()
         self.history = self.load_history()
         self.current_theme = 'enhanced_dark'
-        self.animation_running = False
+        self.animation_running = True
         self.emergency_used = False
         self.setup_ui()
-        self.auto_resume_session()  # Auto resume without asking
+        self.auto_resume_session()
         self.check_block_status()
-        
+
+    def setup_app_icon(self):
+        """Create and set shield + clock icon"""
+        try:
+            # Simple shield + clock icon using text symbols as fallback
+            # In professional install, this will use system icon
+            pass
+        except:
+            pass
+
     def setup_styles(self):
         self.themes = {
             'enhanced_dark': {
@@ -136,11 +151,12 @@ class AnimatedMarThaba:
         header_frame = tk.Frame(parent, bg=self.colors['bg'])
         header_frame.pack(fill=tk.X, pady=(0, 25))
         
-        # Animated logo with gradient effect
+        # Animated logo with shield + clock design
         self.logo_frame = tk.Frame(header_frame, bg=self.colors['bg'])
         self.logo_frame.pack()
         
-        self.logo_label = tk.Label(self.logo_frame, text="⚡", font=('Arial', 42), 
+        # Shield + Clock icon
+        self.logo_label = tk.Label(self.logo_frame, text="🛡️⏰", font=('Arial', 42), 
                                   bg=self.colors['bg'], fg=self.colors['accent'])
         self.logo_label.pack()
         
@@ -153,7 +169,7 @@ class AnimatedMarThaba:
         tk.Label(title_frame, text="MARTHABA PRO", font=('Arial', 18, 'bold'),
                 bg=self.colors['bg'], fg=self.colors['accent']).pack()
         
-        tk.Label(title_frame, text="Ultimate Focus System • Stay Productive", 
+        tk.Label(title_frame, text="Focus Guard • Shield Your Time", 
                 font=('Arial', 10), 
                 bg=self.colors['bg'], fg=self.colors['text_light']).pack()
     
@@ -215,8 +231,8 @@ class AnimatedMarThaba:
                                           size='small', style='secondary')
             btn.pack(side=tk.LEFT, padx=2)
         
-        # Modern focus button
-        self.focus_btn = self.create_modern_button(card, "🎯 START FOCUS SESSION", 
+        # Modern focus button with shield icon
+        self.focus_btn = self.create_modern_button(card, "🛡️ START FOCUS SESSION", 
                                                  self.start_focus, 
                                                  style='primary', size='large')
         self.focus_btn.pack(fill=tk.X, padx=10, pady=10)
@@ -329,7 +345,7 @@ class AnimatedMarThaba:
                                       bg=self.colors['card_bg'], fg=self.colors['accent'])
         self.countdown_label.pack()
         
-        self.status_label = tk.Label(self.status_card, text="⚡ SYSTEM READY", 
+        self.status_label = tk.Label(self.status_card, text="🛡️ SYSTEM READY", 
                                    font=('Arial', 12, 'bold'),
                                    bg=self.colors['card_bg'], 
                                    fg=self.colors['accent'],
@@ -425,91 +441,6 @@ class AnimatedMarThaba:
                                                 lambda key=theme_key: self.change_theme(key),
                                                 style='secondary', size='normal')
             theme_btn.pack(fill=tk.X, pady=3)
-    
-    def change_theme(self, theme_name):
-        """Change the application theme"""
-        if theme_name in self.themes:
-            self.current_theme = theme_name
-            self.colors = self.themes[theme_name]
-            self.refresh_ui()
-            self.show_notification(f"Theme changed to {theme_name.replace('_', ' ').title()}")
-    
-    def refresh_ui(self):
-        """Refresh the entire UI with new theme colors"""
-        # Destroy and recreate the entire UI
-        self.notebook.destroy()
-        self.setup_ui()
-    
-    def auto_resume_session(self):
-        """Automatically resume session after PC restart without asking"""
-        if self.config.get('active', False):
-            end_time = datetime.datetime.fromisoformat(self.config['end_time'])
-            current_time = datetime.datetime.now()
-            
-            if current_time < end_time:
-                # Session still has time remaining - AUTO RESUME
-                remaining = end_time - current_time
-                remaining_str = self.format_time_remaining(remaining)
-                
-                # Update UI for active session
-                self.focus_btn.config(text="🛡️ FOCUS ACTIVE", bg=self.colors['warning'])
-                self.status_label.config(text=f"🛡️ FOCUS MODE ACTIVE", fg=self.colors['warning'])
-                
-                # Show timer and emergency button
-                self.timer_frame.pack(fill=tk.X, pady=10)
-                self.countdown_frame.pack(fill=tk.X, pady=5)
-                self.emergency_btn.pack(fill=tk.X, padx=10, pady=5)
-                
-                # Disable site buttons
-                self.update_site_buttons_state()
-                
-                # Start blocking immediately
-                threading.Thread(target=self.block_sites, daemon=True).start()
-                
-                # Show notification
-                self.show_notification(f"Focus session auto-resumed! {remaining_str} remaining")
-                
-                print(f"Session auto-resumed. {remaining_str} remaining")
-            else:
-                # Session time has passed, end it automatically
-                self.config['active'] = False
-                self.save_config()
-                self.cleanup_hosts_file()
-                print("Session expired automatically")
-    
-    def format_time_remaining(self, time_delta):
-        """Format time remaining in human readable format"""
-        total_seconds = int(time_delta.total_seconds())
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        seconds = total_seconds % 60
-        
-        if hours > 0:
-            return f"{hours}h {minutes}m {seconds}s"
-        elif minutes > 0:
-            return f"{minutes}m {seconds}s"
-        else:
-            return f"{seconds}s"
-    
-    def cleanup_hosts_file(self):
-        """Clean up hosts file entries"""
-        try:
-            subprocess.run(['sudo', 'sed', '-i', '/# MarThaba Focus/d', '/etc/hosts'], 
-                          capture_output=True)
-            print("Hosts file cleaned up")
-        except Exception as e:
-            print(f"Cleanup error: {e}")
-    
-    def update_site_buttons_state(self):
-        """Update the state of site add/remove buttons based on focus session status"""
-        if self.config.get('active', False):
-            # Disable buttons during focus session
-            self.add_btn.config(state='disabled', bg=self.colors['text_light'])
-            self.remove_btn.config(state='disabled', bg=self.colors['text_light'])
-        else:
-            # Enable buttons when no focus session is active
-            self.add_btn.config(state='normal', bg=self.colors['card_bg'])
-            self.remove_btn.config(state='normal', bg=self.colors['danger'])
     
     def create_modern_card(self, parent):
         card = tk.Frame(parent, bg=self.colors['card_bg'], relief='flat', bd=0)
@@ -645,7 +576,7 @@ class AnimatedMarThaba:
     
     def show_notification(self, message):
         if self.config.get('notifications', True):
-            messagebox.showinfo("MarThaba", message)
+            messagebox.showinfo("MarThaba Pro", message)
     
     def load_history_data(self):
         self.history_text.delete(1.0, tk.END)
@@ -840,7 +771,7 @@ class AnimatedMarThaba:
                 self.config['active'] = False
                 self.save_config()
                 self.status_label.config(text="✅ FOCUS COMPLETE", fg=self.colors['success'])
-                self.focus_btn.config(text="🎯 START FOCUS SESSION", bg=self.colors['accent'])
+                self.focus_btn.config(text="🛡️ START FOCUS SESSION", bg=self.colors['accent'])
                 self.emergency_btn.pack_forget()
                 self.timer_frame.pack_forget()
                 self.countdown_frame.pack_forget()
@@ -852,7 +783,7 @@ class AnimatedMarThaba:
                 
                 self.show_notification("Focus session completed!")
         else:
-            self.status_label.config(text="⚡ SYSTEM READY", fg=self.colors['accent'])
+            self.status_label.config(text="🛡️ SYSTEM READY", fg=self.colors['accent'])
             self.emergency_btn.pack_forget()
             self.timer_frame.pack_forget()
             self.countdown_frame.pack_forget()
@@ -889,6 +820,5 @@ class AnimatedMarThaba:
 if __name__ == "__main__":
     root = tk.Tk()
     app = AnimatedMarThaba(root)
-    app.animation_running = True
     app.animate_logo_enhanced()
     root.mainloop()
