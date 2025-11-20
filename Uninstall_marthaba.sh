@@ -1,16 +1,27 @@
 #!/bin/bash
 
 echo "
-MarThaba Pro Uninstaller
+╔═══════════════════════════════════════╗
+║         MarThaba Pro Uninstaller      ║
+╚═══════════════════════════════════════╝
 "
 
-echo "[INFO] Removing MarThaba Pro files..."
+echo "[1/4] Removing application files..."
 sudo rm -rf /opt/marthaba
 
-echo "[INFO] Removing desktop shortcut..."
+echo "[2/4] Removing menu entry..."
+sudo rm -f /usr/share/applications/marthaba.desktop
+
+echo "[3/4] Removing desktop shortcut..."
 rm -f ~/Desktop/MarThaba.desktop
 
-echo "[INFO] Uninstalling Python packages..."
-pip3 uninstall -y Pillow pycaw screen-brightness-control
+echo "[4/4] Cleaning up packages..."
+pip3 uninstall -y Pillow pycaw screen-brightness-control 2>/dev/null
 
-echo "[SUCCESS] MarThaba Pro completely uninstalled!"
+echo "
+╔═══════════════════════════════════════╗
+║         UNINSTALLATION COMPLETE!      ║
+╚═══════════════════════════════════════╝
+
+🗑️  MarThaba Pro completely removed from system.
+"
